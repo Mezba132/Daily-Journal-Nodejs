@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const _ = require("lodash");
+const Compose = require("../Models/dbSchema").composeData();
+const postDate = require("../extra_module/date").getDate();
 
 const homeStartingContent = "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
 const aboutContent = "Hac habitasse platea dictumst vestibulum rhoncus est pellentesque. Dictumst vestibulum rhoncus est pellentesque elit ullamcorper. Non diam phasellus vestibulum lorem sed. Platea dictumst quisque sagittis purus sit. Egestas sed sed risus pretium quam vulputate dignissim suspendisse. Mauris in aliquam sem fringilla. Semper risus in hendrerit gravida rutrum quisque non tellus orci. Amet massa vitae tortor condimentum lacinia quis vel eros. Enim ut tellus elementum sagittis vitae. Mauris ultrices eros in cursus turpis massa tincidunt dui.";
@@ -12,11 +14,18 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-const stores = [];
-
 app.get("/", (req, res) => {
-    res.render("home", { indexContent : homeStartingContent, posts : stores });
-})
+    Compose.find({}, (err, compose) => {
+        if(!err)
+        {
+            res.render("home",{ posts : compose});
+        }
+        else
+        {
+            res.render(err);
+        }
+    })
+});
 
 app.get("/about", (req, res) => {
     res.render("about", {personalcontent : aboutContent});
@@ -26,28 +35,38 @@ app.get("/contact", (req, res) => {
     res.render("contact", {contMeContent : aboutContent});
 })
 
-app.get("/compose", (req, res) => {
+app.route("/compose")
+    .get( (req, res) => {
     res.render("compose");
+    })
+
+    .post( (req, res) => {
+
+    const stores = new Compose ({
+        title : _.startCase(req.body.titleinput),
+        date : postDate,
+        content : req.body.bodyinput
+    })
+    stores.save( (err) => {
+        if(!err)
+        {
+            console.log("Successfully Added");
+        }
+        else
+        {
+            console.log(err);
+        }
+    });
+    res.redirect("/");
 });
 
-app.post("/compose", (req, res) => {
-    let tinput = req.body.titleinput;
-    let binpute = req.body.bodyinput;
-    console.log(tinput);
-    let store = {
-        compseTitle : tinput,
-        composeBody : binpute
-    }
-    stores.push(store);
-    res.redirect("/");
-})
+app.get("/posts/:postId", (req, res) => {
+    let paramId = req.params.postId;
 
-app.get("/posts/:keytext", (req, res) => {
-    let paramTitle = req.params.keytext;
-    stores.forEach( (store) => {
-        if(_.lowerCase(paramTitle) === _.lowerCase(store.compseTitle))
+    Compose.findOne({_id : paramId}, (err, posts) => {
+        if(!err)
         {
-            res.render("post", { requestTitle : store.compseTitle, requestbody : store.composeBody});
+            res.render("post", { requestTitle : posts.title, requestDate : posts.date, requestbody : posts.content});
         }
         else
         {
